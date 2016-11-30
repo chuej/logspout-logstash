@@ -108,9 +108,82 @@ func (a *LogstashAdapter) Stream(logstream chan *router.Message) {
 		js = append(js, byte('\n'))
 
 		if _, err := a.conn.Write(js); err != nil {
-			// There is no retry option implemented yet
-			log.Fatal("logstash: could not write:", err)
+			err = a.retry(buf, err)
+			if err != nil {
+				log.Println("logstash:", err)
+				return
+			}
 		}
+	}
+}
+
+func (a *LogstashAdapter) retry(buf []byte, err error) error {
+	if opError, ok := err.(*net.OpError); ok {
+		if opError.Temporary() || opError.Timeout() {
+			retryErr := a.retryTemporary(buf)
+			if retryErr == nil {
+				return nil
+			}
+		}
+	}
+
+	return a.reconnect()
+}
+
+func (a *LogstashAdapter) retryTemporary(buf []byte) error {
+	log.Println("logstash: retrying tcp up to 11 times")
+	err := retryExp(func() error {
+		_, err := a.conn.Write(buf)
+		if err == nil {
+			log.Println("logstash: retry successful")
+			return nil
+		}
+
+		return err
+	}, 11)
+
+	if err != nil {
+		log.Println("logstash: retry failed")
+		return err
+	}
+
+	return nil
+}
+
+func (a *LogstashAdapter) reconnect() error {
+	log.Println("logstash: reconnecting up to 11 times")
+	err := retryExp(func() error {
+		conn, err := a.transport.Dial(a.route.Address, a.route.Options)
+		if err != nil {
+			return err
+		}
+
+		a.conn = conn
+		return nil
+	}, 11)
+
+	if err != nil {
+		log.Println("logstash: reconnect failed")
+		return err
+	}
+
+	return nil
+}
+
+func retryExp(fun func() error, tries uint) error {
+	try := uint(0)
+	for {
+		err := fun()
+		if err == nil {
+			return nil
+		}
+
+		try++
+		if try > tries {
+			return err
+		}
+
+		time.Sleep((1 << try) * 10 * time.Millisecond)
 	}
 }
 
