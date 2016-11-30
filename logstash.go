@@ -130,7 +130,11 @@ func (a *LogstashAdapter) retry(buf []byte, err error) error {
 		}
 	}
 
-	return a.reconnect()
+	a.reconnect()
+	retryErr := a.retryTemporary(buf)
+	if retryErr == nil {
+		return nil
+	}
 }
 
 func (a *LogstashAdapter) retryTemporary(buf []byte) error {
@@ -162,6 +166,7 @@ func (a *LogstashAdapter) reconnect() error {
 		}
 
 		a.conn = conn
+		log.Println("logstash: reconnect successful")
 		return nil
 	}, 11)
 
@@ -170,7 +175,6 @@ func (a *LogstashAdapter) reconnect() error {
 		return err
 	}
 
-	log.Println("logstash: reconnect successful")
 	return nil
 }
 
