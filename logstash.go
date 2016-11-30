@@ -6,7 +6,8 @@ import (
 	"log"
 	"net"
 	"strings"
-
+	"time"
+	
 	"github.com/fsouza/go-dockerclient"
 	"github.com/gliderlabs/logspout/router"
 )
@@ -20,6 +21,7 @@ type LogstashAdapter struct {
 	conn          net.Conn
 	route         *router.Route
 	containerTags map[string][]string
+	transport router.AdapterTransport
 }
 
 // NewLogstashAdapter creates a LogstashAdapter with UDP as the default transport.
@@ -108,7 +110,7 @@ func (a *LogstashAdapter) Stream(logstream chan *router.Message) {
 		js = append(js, byte('\n'))
 
 		if _, err := a.conn.Write(js); err != nil {
-			err = a.retry(buf, err)
+			err = a.retry(js, err)
 			if err != nil {
 				log.Println("logstash:", err)
 				return
