@@ -7,7 +7,7 @@ import (
 	"net"
 	"strings"
 	"time"
-	
+
 	"github.com/fsouza/go-dockerclient"
 	"github.com/gliderlabs/logspout/router"
 )
@@ -40,6 +40,7 @@ func NewLogstashAdapter(route *router.Route) (router.LogAdapter, error) {
 		route:         route,
 		conn:          conn,
 		containerTags: make(map[string][]string),
+		transport: transport
 	}, nil
 }
 
