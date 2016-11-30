@@ -170,6 +170,7 @@ func (a *LogstashAdapter) reconnect() error {
 		return err
 	}
 
+	log.Println("logstash: reconnect successful")
 	return nil
 }
 
